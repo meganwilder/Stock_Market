@@ -1,0 +1,584 @@
+---
+title: "APAN5420 --- HW 11, Stocks"
+author: 'Megan Wilder'
+date: "8/10/18"
+output:
+  pdf_document: 
+    number_sections: yes
+    toc: yes
+    toc_depth: 1
+  html_document: 
+    df_print: default
+    number_sections: yes
+    toc: no
+    toc_depth: 1
+---
+
+-----
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+
+```{r include=FALSE, eval=FALSE}
+#Load Stock Data
+#load packages
+library(readr)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(stringr)
+library(ggplot2)
+library(tidyquant)
+library(RcppRoll)
+library(TTR)
+library(RCurl)
+library(kableExtra)
+library(Metrics)
+library(caret)
+library(ggsn)
+library(h2o)
+require(doParallel)
+
+#read in the one file
+stockDF <-
+read_csv("stocks.csv", col_types = c("dcDddddnnddddd")) %>%
+arrange(Symbol, Date)
+
+#remove X1 column and created feature columns
+stockDF$X1 <- NULL
+stockDF$Log_Open <- NULL
+stockDF$Log_High <- NULL
+stockDF$Log_Low <- NULL
+stockDF$Log_Close <- NULL
+stockDF$Log_Volume <- NULL
+
+#remove OpenInt as it is all 0's
+stockDF$OpenInt <- NULL
+
+#view stocks with volume of NA
+stockDF %>% filter(is.na(Volume)) #none
+
+#view stocks with volume of 0
+stockDF %>% filter(Volume == 0)
+
+#remove rows with volume of 0
+stockDF <- stockDF %>% filter(Volume != 0)
+
+#explore DF
+summary(stockDF)
+kable(head(stockDF)) %>% kable_styling(latex_options = "scale_down")
+
+#change stock symbols to all caps to match SP500
+stockDF$Symbol <- sapply(stockDF$Symbol, toupper)
+
+#SP500 information
+sp500URL <-
+getURL(
+"https://raw.githubusercontent.com/datasets/s-and-p-500-companies/master/data/constituents.csv"
+)
+sp500File <- file.path('data', 'constituents.csv')
+
+if (file.exists(sp500File)) {
+sp500URL <- sp500File
+}
+
+# read in the SP500 information
+sp500Members <- read_csv(sp500URL)
+
+sp500DF <- stockDF %>% filter (Symbol %in% sp500Members$Symbol)
+
+summary(sp500DF)
+
+gStockDF <- sp500DF %>%
+group_by(Symbol) %>%
+arrange(Date)
+
+nrow(gStockDF)
+
+# Check number of rows per symbol, need to keep EMA window under the minimum
+gStockDF %>%
+group_by(Symbol) %>%
+summarise(Num = n()) %>%
+arrange(Num)
+
+
+```
+
+#Add Features
+```{r eval=FALSE}
+#In addition to features created in class,
+#added EMA (exponential moving average) for 30 days and
+#rolling 30 day average for open, high, low, close and volume
+
+df2 <- gStockDF %>%
+mutate(
+Open_Close_PctChange = (Close - Open) / Open * 100,
+
+Open_Close_Delt = Delt(Open, Close, k = 0) * 100,
+
+Open_Change   = Open   - lag(Open),
+High_Change   = High   - lag(High),
+Low_Change    = Low    - lag(Low),
+Close_Change  = Close  - lag(Close),
+Volume_Change = Volume - lag(Volume),
+
+Daily_Return  = Close / Open,
+
+Open_PctChange   = Open_Change   / lag(Open)   * 100,
+High_PctChange   = High_Change   / lag(High)   * 100,
+Low_PctChange    = Low_Change    / lag(Low)    * 100,
+Close_PctChange  = Close_Change  / lag(Close)  * 100,
+Volume_PctChange = Volume_Change / lag(Volume) * 100,
+
+Open_Mean10   = roll_mean(Open,   10, fill = NA, na.rm = TRUE),
+High_Mean10   = roll_mean(High,   10, fill = NA, na.rm = TRUE),
+Low_Mean10    = roll_mean(Low,    10, fill = NA, na.rm = TRUE),
+Close_Mean10  = roll_mean(Close,  10, fill = NA, na.rm = TRUE),
+Volume_Mean10 = roll_mean(Volume, 10, fill = NA, na.rm = TRUE),
+
+Open_Mean10_R   = roll_meanr(Open,   10, fill = NA, na.rm = TRUE),
+High_Mean10_R   = roll_meanr(High,   10, fill = NA, na.rm = TRUE),
+Low_Mean10_R    = roll_meanr(Low,    10, fill = NA, na.rm = TRUE),
+Close_Mean10_R  = roll_meanr(Close,  10, fill = NA, na.rm = TRUE),
+Volume_Mean10_R = roll_meanr(Volume, 10, fill = NA, na.rm = TRUE),
+
+Open_Mean30   = roll_mean(Open,   30, fill = NA, na.rm = TRUE),
+High_Mean30   = roll_mean(High,   30, fill = NA, na.rm = TRUE),
+Low_Mean30    = roll_mean(Low,    30, fill = NA, na.rm = TRUE),
+Close_Mean30  = roll_mean(Close,  30, fill = NA, na.rm = TRUE),
+Volume_Mean30 = roll_mean(Volume, 30, fill = NA, na.rm = TRUE),
+
+Open_Mean30_R   = roll_meanr(Open,   30, fill = NA, na.rm = TRUE),
+High_Mean30_R   = roll_meanr(High,   30, fill = NA, na.rm = TRUE),
+Low_Mean30_R    = roll_meanr(Low,    30, fill = NA, na.rm = TRUE),
+Close_Mean30_R  = roll_meanr(Close,  30, fill = NA, na.rm = TRUE),
+Volume_Mean30_R = roll_meanr(Volume, 30, fill = NA, na.rm = TRUE),
+
+Open_SD30   = roll_sd(Open,   30, fill = NA, na.rm = TRUE),
+High_SD30   = roll_sd(High,   30, fill = NA, na.rm = TRUE),
+Low_SD30    = roll_sd(Low,    30, fill = NA, na.rm = TRUE),
+Close_SD30  = roll_sd(Close,  30, fill = NA, na.rm = TRUE),
+Volume_SD30 = roll_sd(Volume, 30, fill = NA, na.rm = TRUE),
+
+Open_VAR30   = roll_var(Open,   30, fill = NA, na.rm = TRUE),
+High_VAR30   = roll_var(High,   30, fill = NA, na.rm = TRUE),
+Low_VAR30    = roll_var(Low,    30, fill = NA, na.rm = TRUE),
+Close_VAR30  = roll_var(Close,  30, fill = NA, na.rm = TRUE),
+Volume_VAR30 = roll_var(Volume, 30, fill = NA, na.rm = TRUE),
+
+Open_EMA10   = EMA(Open,   n = 10),
+High_EMA10   = EMA(High,   n = 10),
+Low_EMA10    = EMA(Low,    n = 10),
+Close_EMA10  = EMA(Close,  n = 10),
+Volume_EMA10 = EMA(Volume, n = 10),
+
+Open_EMA30   = EMA(Open,   n = 30),
+High_EMA30   = EMA(High,   n = 30),
+Low_EMA30    = EMA(Low,    n = 30),
+Close_EMA30  = EMA(Close,  n = 30),
+Volume_EMA30 = EMA(Volume, n = 30)
+
+) %>%
+arrange(Symbol, Date)
+
+# add SP500 characteristics (sector)
+df3 <- df2 %>% left_join(sp500Members, by = "Symbol")
+
+#View number of stocks by sector
+df3 %>%
+group_by(Sector) %>%
+summarise(Num = length(unique(Symbol))) %>%
+arrange(Num)
+
+# Add day of week and quarter features
+df3$DOW <- weekdays(df3$Date)
+df3$Quarter <- quarters(df3$Date)
+
+#view number of instances per quarter
+df3 %>%
+group_by(Quarter) %>%
+summarise(Num = n()) %>%
+arrange(Num)
+
+#view number of instances per day
+df3 %>%
+group_by(DOW) %>%
+summarise(Num = n()) %>%
+arrange(Num)
+
+```
+
+#Prepare Dataset
+```{r eval=FALSE}
+#Subset Data to Only 1 Year
+# add a year feature
+df3$Year <- as.numeric(format(df3$Date, "%Y"))
+df3$QtrYear <- sprintf("%s-%s", df3$Year, df3$Quarter)
+df3$Month <- as.numeric(format(df3$Date, "%m"))
+
+# use 2016 data
+df4 <- filter(df3, Year == 2016)
+
+```
+
+
+```{r eval=FALSE}
+# Look for Zero or Near Zero Variance
+nzv <- nearZeroVar(df4, saveMetrics = TRUE)
+nzv  # year only variable with NZV
+```
+
+
+```{r eval=FALSE}
+# Look for Linear Combinations
+#filter for only numerical columns
+df4_num <- Filter(is.numeric, df4)
+
+#remove rows with NA's
+df4_num <- na.omit(df4_num)
+
+#check for linear combinations
+df4_linear <- findLinearCombos(df4_num)
+df4_linear
+
+#view columns identified
+head(df4_num [, df4_linear$remove])
+
+# remove the recommended columns from df4
+df4$Open_Close_Delt <- NULL
+df4$Year <- NULL
+
+#remove NA's
+df4 <- na.omit(df4)
+```
+
+
+```{r eval=FALSE}
+#Split data into training and hold out test set
+train <- filter(df4, Month >= 1 & Month <= 9)
+holdout <- filter(df4, Month >= 10)
+```
+
+#Models
+## First Model: Generalized Linear Model
+```{r eval=FALSE}
+#GLM Model
+#there are no tuning parameters for this model
+
+myTimeControl <- trainControl(
+method = "timeslice",
+initialWindow = 100,
+#5 months
+horizon = 40,
+#2 months
+fixedWindow = TRUE
+)
+
+#train model with top 4 variables from Module 8 assignment
+set.seed(123)
+glm.mod <-
+train(
+Open_Close_PctChange ~ Open_EMA10 + Open_Change + High_Change + Open_Mean10_R,
+data = train,
+method = "glm",
+family = "gaussian",
+trControl = myTimeControl,
+preProc = c("center", "scale")
+)#Center and scale data
+```
+
+```{r}
+#GLM model results
+glm.mod
+
+#view results table
+glm.mod$results
+```
+
+## Second Model: Random Forest 
+```{r eval=FALSE}
+## Second Model: Random Forest 
+#RF Model
+myTimeControl <- trainControl(
+method = "timeslice",
+initialWindow = 100,
+#5 months
+horizon = 40,
+#2 months
+fixedWindow = TRUE
+)
+
+#provide a grid of parameters
+rf.grid <- expand.grid(mtry = c(2, 3))
+
+#train model with top 4 variables from Module 8 assignment
+set.seed(123)
+rf.mod <-
+train(
+Open_Close_PctChange ~ Open_EMA10 + Open_Change + High_Change + Open_Mean10_R,
+data = train,
+method = "rf",
+trControl = myTimeControl,
+tuneGrid = rf.grid,
+preProc = c("center", "scale")
+)#Center and scale data
+```
+
+```{r}
+#RF Model results
+rf.mod
+
+#view results table
+rf.mod$results
+
+#best moodel
+rf.mod$bestTune
+#RMSE was used to select the optimal model using the smallest value.
+#The final value used for the model was mtry = 3.
+```
+
+## Third Model: Parial Least Squares 
+```{r eval=FALSE}
+#PLS Model
+myTimeControl <- trainControl(
+method = "timeslice",
+initialWindow = 100,
+#5 months
+horizon = 40,
+#2 months
+fixedWindow = TRUE
+)
+
+#train model with top 4 variables from Module 8 assignment
+set.seed(123)
+pls.mod <-
+train(
+Open_Close_PctChange ~ Open_EMA10 + Open_Change + High_Change + Open_Mean10_R,
+data = train,
+method = 'pls',
+trControl = myTimeControl,
+tuneLength = 15,
+preProc = c("center", "scale")
+)#Center and scale data
+```
+
+```{r}
+#PLS Model results
+pls.mod
+
+#view results table
+pls.mod$results
+
+# best moodel
+pls.mod$bestTune
+```
+
+## Fourth Model: GLMNET
+```{r eval=FALSE}
+#GLMNET Model
+myTimeControl <- trainControl(
+method = "timeslice",
+initialWindow = 100,
+#5 months
+horizon = 40,
+#2 months
+fixedWindow = TRUE
+)
+
+#provide a grid of parameters
+glmnet.grid <- expand.grid(expand.grid(
+.alpha = c(0,
+1),
+.lambda = seq(0.02, 0.06, by = 0.02)
+))
+
+#train model with top 4 variables from Module 8 assignment
+set.seed(123)
+glmnet.mod <-
+train(
+Open_Close_PctChange ~ Open_EMA10 + Open_Change + High_Change + Open_Mean10_R,
+data = train,
+method = 'glmnet',
+trControl = myTimeControl,
+tuneGrid = glmnet.grid,
+preProc = c("center", "scale")
+)#Center and scale data
+```
+
+```{r}
+#GLM Model results
+glmnet.mod
+
+#view results table
+glmnet.mod$results
+
+# best moodel
+glmnet.mod$bestTune
+
+```
+
+## Fifth Model: SVM Radial
+```{r eval=FALSE}
+#SVM Radial Model
+myTimeControl <- trainControl(
+method = "timeslice",
+initialWindow = 100,
+#5 months
+horizon = 40,
+#2 months
+fixedWindow = TRUE
+)
+
+#Train and Tune the SVM with default parameters
+#(for computation reasons I did not re-run this when knitting the file)
+#svm.tune <-
+#train(
+#Open_Close_PctChange ~ Open_EMA10 + Open_Change + High_Change + Open_Mean10_R,
+#data = train,
+#method = "svmRadial",
+# Radial kernel
+#preProc = c("center", "scale"),
+#Center and scale data
+#trControl = myTimeControl
+#)
+
+#svm.tune
+
+## In the second pass, having seen the parameter values selected in the
+#first pass, we use train()'s tuneGrid parameter to do some sensitivity
+#analysis around the values C = 0.5 and sigma = 2.425959 that produced
+#the best model with the default settings.
+
+#provide a grid of parameters
+svm.grid <- expand.grid( sigma = c(2, 2.5, 3),
+             C = c(.25, .5, 1))
+
+#train model with top 4 variables from Module 8 assignment
+set.seed(123)
+svm.mod <- train(Open_Close_PctChange ~ Open_EMA10 + Open_Change + High_Change + Open_Mean10_R,
+ data = train,
+ method = "svmRadial",
+ trControl = myTimeControl,
+ tuneGrid = svm.grid,
+ preProc = c("center", "scale"))
+```
+
+```{r}
+#SVM Model results
+svm.mod
+
+#view results table
+svm.mod$results
+
+# best moodel
+svm.mod$bestTune #sigma = 2, C = 0.5
+```
+
+
+# Compare All Models We've Trained
+```{r eval=FALSE}
+resamps <- resamples(
+ list(
+   GLM = glm.mod,
+   RF = rf.mod,
+   PLS = pls.mod,
+   GLM.Net = glmnet.mod,
+   SVM = svm.mod) )
+```
+
+```{r}
+resamps
+```
+
+## Box Plots of Metrics
+```{r}
+trellis.par.set( caretTheme())
+
+bwplot(resamps, layout = c(3, 1))
+
+```
+
+## RMSE Metrics
+```{r}
+dotplot(resamps, metric = "RMSE")
+```
+
+#Train with the Best Model
+```{
+r eval = FALSE
+}
+#Create a new trainControl object for training the full model
+#Method - none = only fits one model to the entire training set
+#tuneGrid = Can pass the bestTune from the training session
+
+#RF had lowest RMSE use as best model.
+
+finalFitControl <- trainControl(method = "none")
+
+set.seed(123)
+rfFitFinal <-
+train(
+Open_Close_PctChange ~ Open_EMA10 + Open_Change + High_Change + Open_Mean10_R,
+data = train,
+method = "rf",
+trControl = finalFitControl,
+verbose = FALSE,
+## Only a single model can be passed to the
+## function when no resampling is used:
+tuneGrid = rf.mod$bestTune
+)
+rfFitFinal
+```
+
+```{r}
+rfFitFinal
+```
+```{r eval=FALSE}
+#predict on test set
+rf.pred <- predict(rfFitFinal, newdata = holdout)
+
+#change to dataframes
+rf.df <- as.data.frame(rf.pred)
+holdout.df <- as.data.frame(holdout)
+
+#attached predicted values to test dataframe
+final <- cbind(holdout.df, rf.df)
+
+```
+
+#Find Outliers
+```{r eval = FALSE}
+# define a function to find outliers
+FindOutliers <- function(data) {
+lowerq = quantile(data)[2]
+upperq = quantile(data)[4]
+iqr = upperq - lowerq
+extreme.threshold.upper = (iqr * 200) + upperq
+extreme.threshold.lower = lowerq - (iqr * 200)
+result <-
+which(data > extreme.threshold.upper |
+data < extreme.threshold.lower)
+}
+```
+
+
+```{r eval = FALSE}
+#ape computes the elementwise absolute percent
+#difference between two numeric vectors
+final$APE <- ape(final$Open_Close_PctChange, final$rf.pred)
+# use the function to identify outliers
+outliers <- FindOutliers(final$APE)
+# remove non outliers
+RF.Outliers <- final[outliers, ]
+#remove rows with APE of Inf
+RF.Outliers <- RF.Outliers[is.finite(RF.Outliers$APE),]
+```
+CMI: On 2016-11-11 CMI's closing price was flat versus its opening price. However, my model predicted a 2% decline. It's difficult to say that my model is correct and that the stock should have traded down instead of flat. Particularly given that the stock traded between -.2% and +3% in the week prior to 1/12/12 and the week after.  
+
+ISRG: On 2016-12-13 ISRG's closing price was flat versus its opening price. However, my model predicted a 2% increase. It's difficult to say that my model is correct and that the stock should have traded down instead of flat. Particularly given that the stock traded in a narrow band the week prior to 2016-12-13 and the week after (-.7% - +2%).  
+
+REGN: On 2016-10-27 REGN's closing price was flat versus its opening price. However, my model predicted a 1% increase. It's difficult to say that my model is correct and that the stock should have traded down instead of flat. Particularly given that the stock traded  between -3% and +5% in the week prior to 2016-10-27 and the week after. 
+
+
