@@ -1,0 +1,679 @@
+---
+title: "APAN5420 --- HW 1"
+author: 'Megan Wilder'
+date: "5/25/18"
+output:
+  pdf_document: 
+    number_sections: yes
+    toc: yes
+    toc_depth: 1
+  html_document: 
+    df_print: default
+    number_sections: yes
+    toc: no
+    toc_depth: 1
+---
+
+-----
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+#Load both ETF and Stock Data
+```{r}
+#load packages
+library(readr)  # for read_csv()
+library(dplyr)  # for mutate()
+library(tidyr)  # for unnest()
+library(purrr)  # for map(), reduce()
+library(stringr) # extract symbols
+
+# find all file names ending in .txt
+files <- dir(pattern = "*.txt")
+
+#load ETF and Stock data and create symbol column with ticker from file name
+
+DF = tibble(File = files) %>%
+  extract(File, "Symbol", "([^.]+)", remove = FALSE) %>%
+  mutate(Data = lapply(File, read_csv)) %>%
+  unnest(Data) %>%
+  select(-File)
+
+```
+
+#Explore Data
+```{r}
+#Summary
+summary(DF)
+
+#View NA's in DF
+new_DF_open <- DF[is.na(DF$Open),]
+new_DF_high <- DF[is.na(DF$High),]
+new_DF_low <- DF[is.na(DF$Low),]
+new_DF_close <- DF[is.na(DF$Close),]
+new_DF_volume <- DF[is.na(DF$Volume),]
+
+unique(new_DF_open$Symbol)
+unique(new_DF_high$Symbol)
+unique(new_DF_low$Symbol)
+unique(new_DF_close$Symbol)
+unique(new_DF_volume$Symbol)
+#tvix and uvxy, aezs, brk_a, brk_b, clbs, fbc, rgse and bac did not load properly
+
+#remove tvix and uvxy, aezs, brk_a, brk_b, clbs, fbc, rgse and bac data and reload
+DF = DF[!DF$Symbol == "tvix", ]
+DF = DF[!DF$Symbol == "uvxy", ]
+DF = DF[!DF$Symbol == "aezs", ]
+DF = DF[!DF$Symbol == "brk-a", ]
+DF = DF[!DF$Symbol == "brk-b", ]
+DF = DF[!DF$Symbol == "clbs", ]
+DF = DF[!DF$Symbol == "fbc", ]
+DF = DF[!DF$Symbol == "rgse", ]
+DF = DF[!DF$Symbol == "bac", ]
+
+#reload tvix and uvxy, aezs, brk_a, brk_b, clbs, fbc, rgse and bac
+tvix <- read.csv("tvix.us.txt")
+uvxy <- read.csv("uvxy.us.txt")
+aezs <- read.csv("aezs.us.txt")
+brk_a <- read.csv("brk-a.us.txt")
+brk_b <- read.csv("brk-b.us.txt")
+clbs <- read.csv("clbs.us.txt")
+fbc <- read.csv("fbc.us.txt")
+rgse <- read.csv("rgse.us.txt")
+bac <- read.csv("bac.us.txt")
+
+#add symbol column
+tvix$Symbol <- "tvix"
+uvxy$Symbol <- "uvxy"
+aezs$Symbol <- "aezs"
+brk_a$Symbol <- "brk_a"
+brk_b$Symbol <- "brk_b"
+clbs$Symbol <- "clbs"
+fbc$Symbol <- "fbc"
+rgse$Symbol <- "rgse"
+bac$Symbol <- "bac"
+
+#attach tvix and uvxy, aezs, brk_a, brk_b, clbs, fbc, rgse and bac to DF_new
+DF_new <- rbind(DF, aezs)
+DF_new <- rbind(DF_new, brk_a)
+DF_new <- rbind(DF_new, brk_b)
+DF_new <- rbind(DF_new, clbs)
+DF_new <- rbind(DF_new, fbc)
+DF_new <- rbind(DF_new, rgse)
+DF_new <- rbind(DF_new, bac)
+DF_new <- rbind(DF_new, tvix)
+DF_new <- rbind(DF_new, uvxy)
+
+#check for NAs
+summary(DF_new)
+
+#View Class of each variable
+sapply(DF_new, class)
+
+#Find Stock with -1 Low
+DF_new %>% filter(Low == -1)
+#HLG on 2017-08-10, low should be 10.13, high should be 10.98,
+#close should be 10.35 and Volume of 32,600
+
+DF_new %>% filter(Symbol == "hlg") %>% filter(Date >= as.Date("2017-08-1") &
+Date <= as.Date("2017-08-20"))
+
+#Replace incorrect HLG data
+DF_new$Low[DF_new$Low == "-1"] <- "10.13"
+DF_new[DF_new$High == "863.473" &
+DF_new$Symbol == "hlg", 4] <- "10.98"
+DF_new[DF_new$Close == "863.473" &
+DF_new$Symbol == "hlg", 6] <- "10.35"
+DF_new[DF_new$Volume == "10" & DF_new$Symbol == "hlg", 7] <- "32600"
+
+
+
+#change from scientific notation
+options(scipen = 999)
+
+#check summary
+summary(DF_new)
+
+#Find Stock with 1423712891 Open
+DF_new %>% filter(Open == 1423712891) #drys checked on yahoo finance and correct
+DF_new %>% filter(Symbol == "drys") %>% filter(Date >= as.Date("2007-10-10") &
+Date <= as.Date("2007-10-20"))
+
+#Find Stock with 2423735131 Volume
+DF_new %>% filter(Volume == 2423735131)
+#View days around that date
+DF_new %>% filter(Symbol == "bac") %>% filter(Date >= as.Date("2012-03-01") &
+Date <= as.Date("2012-03-10"))
+#bac checked on yahoo finance and incorrect should be 328,331,900
+#replace incorrect volume
+DF_new[DF_new$Volume == "2423735131" &
+DF_new$Symbol == "bac", 7] <- "328331900"
+
+#Find Stock with 2304018600 Volume
+DF_new %>% filter(Volume == 2304018600)  #brk_b
+#View days around that date
+DF_new %>% filter(Symbol == "brk_b") %>% filter(Date >= as.Date("2010-02-07") &
+Date <= as.Date("2010-02-15"))  #appears correct based on morningstar
+# http://performance.morningstar.com/stock/performance-return.action?p=price_history_page&t=BRK.B&region=usa&culture=en-US
+
+#Change columns back to numeric
+DF_new$Low <- as.numeric(DF_new$Low)
+DF_new$High <- as.numeric(DF_new$High)
+DF_new$Close <- as.numeric(DF_new$Close)
+DF_new$Volume <- as.numeric(DF_new$Volume)
+
+#check class
+sapply(DF_new, class)
+
+```
+#Feature Creation  
+
+##Log Prices and Volumes 
+
+Lead: I'm going to convert stock and ETF prices to log prices and volume to log volume.   
+
+```{r}
+#Calculate log prices and volumes and create new columns
+DF_new <- DF_new %>%
+mutate(
+Log_Open = log(Open),
+Log_High = log(High),
+Log_Low = log(Low),
+Log_Close = log(Close),
+Log_Volume = log(Volume)
+) %>%
+ungroup()
+
+#graphically compare Arithmetic vs log prices/volumes
+#load ggplot2
+library(ggplot2)
+#Opening Price Arithmetic
+ggplot(data = DF_new, aes(DF_new$Open)) + geom_histogram() + xlab("Opening Price")
+
+#Opening Price log
+ggplot(data = DF_new, aes(DF_new$Log_Open)) + geom_histogram() + xlab("Log Opening Price")
+
+#High Price Arithmetic
+ggplot(data = DF_new, aes(DF_new$High)) + geom_histogram() + xlab("High Price")
+
+#High Price log
+ggplot(data = DF_new, aes(DF_new$Log_High)) + geom_histogram() + xlab("Log High Price")
+
+#Low Price Arithmetic
+ggplot(data = DF_new, aes(DF_new$Low)) + geom_histogram() + xlab("Low Price")
+
+#Low Price log
+ggplot(data = DF_new, aes(DF_new$Log_Low)) + geom_histogram() + xlab("Log Low Price")
+
+#Closing Price Arithmetic
+ggplot(data = DF_new, aes(DF_new$Close)) + geom_histogram() + xlab("Closinging Price")
+
+#Closing Price log
+ggplot(data = DF_new, aes(DF_new$Log_Close)) + geom_histogram() + xlab("Log Closing Price")
+
+#Volume Arithmetic
+ggplot(data = DF_new, aes(DF_new$Volume)) + geom_histogram() + xlab("Volume")
+
+#Volume log
+ggplot(data = DF_new, aes(DF_new$Log_Volume)) + geom_histogram() + xlab("Log Volume")
+```
+Analysis: As you can see in the above graphs converting to log values reduces the wide range of data into a more manageable size.  For example, with arithmetic scaling, all of the metrics were right skewed. For price, DRYS drove this due to the very high stock price.  For volume, brk_b drove this due to high volume.  Additionally, the log graphs, are log-normally distributed.
+
+Conclusion: Converting price and volume to log scale enabled better visualization of the data.  Additionally, by converting to log scale the metrics approximately follow a normal distribution enabling the use of many statistical tests that require the assumption of normality.  (Source: http://www.automatedtrader.net/articles/strategies/158619/models-for-daily-and-intra_day-volume-prediction.) 
+
+##Log Returns 
+
+Lead: I'm going to calculate the daily log returns of each stock and ETF.   
+
+```{r}
+#Calculate daily log return, add new column for variable
+DF_new$Log_Daily_Return <- log(DF_new$Close / DF_new$Open)
+#summary
+summary(DF_new)
+#find INF results for log return
+DF_new %>% filter(Log_Daily_Return == "Inf") #Log Daily Return infinite when opening price = 0
+
+#check to see if data is correct
+#bcom
+DF_new %>% filter(Symbol == "bcom") %>% filter(Date >= as.Date("2011-03-10") &
+Date <= as.Date("2011-03-20"))
+#open and low price missing, impute with prior days close price
+DF_new[DF_new$Open == "0" & DF_new$Symbol == "bcom", 3] <- "19.301"
+DF_new[DF_new$Low == "0" & DF_new$Symbol == "bcom", 5] <- "19.301"
+
+#blj
+DF_new %>% filter(Symbol == "blj") %>% filter(Date >= as.Date("2008-02-02") &
+Date <= as.Date("2008-02-10"))
+#open, low volume missing, impute with prior days close price
+DF_new[DF_new$Open == "0" & DF_new$Symbol == "blj", 3] <- "12.138"
+DF_new[DF_new$Low == "0" & DF_new$Symbol == "blj", 5] <- "12.138"
+DF_new[DF_new$Volume == "0" & DF_new$Symbol == "blj", 7] <- "1464"
+
+#cwi
+DF_new %>% filter(Symbol == "cwi") %>% filter(Date >= as.Date("2007-01-07") &
+Date <= as.Date("2007-01-20"))
+#open, low volume missing, impute with prior days close price
+#didn't start trading until 1/17/2007
+#source:https://finance.yahoo.com/quote/CWI/history?period1=1167886800&period2=1169269200&interval=1d&filter=history&frequency=1d
+#remove rows 2007-01-10 to 2007-01-16
+DF_new = DF_new[!(
+DF_new$Date >= as.Date("2007-01-10") &
+DF_new$Date <= as.Date("2007-01-16") & DF_new$Symbol == "cwi"
+), ]
+
+#drh
+#didn't start trading until 2005-05-25
+#https://finance.yahoo.com/quote/DRH/history?period1=1116561600&period2=1117425600&interval=1d&filter=history&frequency=1d
+#remove row 2005-05-25
+DF_new = DF_new[!(DF_new$Date == as.Date("2005-05-25") &
+DF_new$Symbol == "drh"), ]
+
+#efv
+DF_new %>% filter(Symbol == "efv") %>% filter(Date >= as.Date("2005-10-06") &
+Date <= as.Date("2005-10-15"))
+#open, low volume missing, impute with prior days close price
+DF_new[DF_new$Open == "0" & DF_new$Symbol == "efv", 3] <- "41.368"
+DF_new[DF_new$Low == "0" & DF_new$Symbol == "efv", 5] <- "41.368"
+DF_new[DF_new$Volume == "0" & DF_new$Symbol == "efv", 7] <- "10792"
+
+#emi
+DF_new %>% filter(Symbol == "emi") %>% filter(Date >= as.Date("2007-03-25") &
+Date <= as.Date("2007-03-30"))
+#open, low volume missing, impute with prior days close price
+DF_new[DF_new$Open == "0" & DF_new$Symbol == "emi", 3] <- "9.837"
+DF_new[DF_new$Low == "0" & DF_new$Symbol == "emi", 5] <- "9.837"
+DF_new[DF_new$Volume == "0" & DF_new$Symbol == "emi", 7] <- "31695"
+
+#emj
+DF_new %>% filter(Symbol == "emj") %>% filter(Date >= as.Date("2008-02-01") &
+Date <= as.Date("2008-02-10"))
+#open, low volume missing, impute with prior days close price
+DF_new[DF_new$Open == "0" & DF_new$Symbol == "emj", 3] <- "10.308"
+DF_new[DF_new$Low == "0" & DF_new$Symbol == "emj", 5] <- "10.308"
+DF_new[DF_new$Volume == "0" & DF_new$Symbol == "emj", 7] <- "2872"
+
+#fmo
+DF_new %>% filter(Symbol == "fmo") %>% filter(Date >= as.Date("2007-11-01") &
+Date <= as.Date("2007-11-07"))
+#open, low missing, impute with prior days close price
+DF_new[DF_new$Open == "0" & DF_new$Symbol == "fmo", 3] <- "13.618"
+DF_new[DF_new$Low == "0" & DF_new$Symbol == "fmo", 5] <- "13.618"
+
+#fud
+DF_new %>% filter(Symbol == "fud") %>% filter(Date >= as.Date("2008-03-28") &
+Date <= as.Date("2008-05-01"))
+#didn't start trading until 2008-04-03 source:
+#https://finance.yahoo.com/quote/FUD/history?period1=1207022400&period2=1211688000&interval=1d&filter=history&frequency=1d
+
+#remove row 2008-04-01
+DF_new = DF_new[!(DF_new$Date == as.Date("2008-04-01") &
+DF_new$Symbol == "fud"), ]
+
+#gbb
+DF_new %>% filter(Symbol == "gbb") %>% filter(Date >= as.Date("2007-05-05") &
+Date <= as.Date("2007-05-10"))
+#remove row 2007-05-08
+DF_new = DF_new[!(DF_new$Date == as.Date("2007-05-08") &
+DF_new$Symbol == "gbb"), ]
+
+#ite
+DF_new %>% filter(Symbol == "ite") %>% filter(Date >= as.Date("2007-05-20") &
+Date <= as.Date("2007-06-10"))
+#remove rows 2007-01-10 to 2007-01-16
+#didn't start trading
+#https://finance.yahoo.com/quote/ITE/history?period1=1181448000&period2=1183176000&interval=1d&filter=history&frequency=1d
+DF_new = DF_new[!(
+DF_new$Date >= as.Date("2007-05-23") &
+DF_new$Date <= as.Date("2007-05-29") & DF_new$Symbol == "ite"
+), ]
+
+#itm
+DF_new %>% filter(Symbol == "itm") %>% filter(Date >= as.Date("2009-04-15") &
+Date <= as.Date("2009-04-25"))
+#open, low missing, impute with prior days close price
+DF_new[DF_new$Open == "0" & DF_new$Symbol == "itm", 3] <- "17.608"
+DF_new[DF_new$Low == "0" & DF_new$Symbol == "itm", 5] <- "17.608"
+
+#mln
+DF_new %>% filter(Symbol == "mln") %>% filter(Date >= as.Date("2009-04-15") &
+Date <= as.Date("2009-04-30"))
+#open, low missing, impute with prior days close price
+DF_new[DF_new$Open == "0" & DF_new$Symbol == "mln", 3] <- "13.397"
+DF_new[DF_new$Low == "0" & DF_new$Symbol == "mln", 5] <- "13.397"
+
+#nom
+DF_new %>% filter(Symbol == "nom") %>% filter(Date >= as.Date("2008-02-02") &
+Date <= as.Date("2008-02-10"))
+#open, low volume missing, impute with prior days close price
+DF_new[DF_new$Open == "0" & DF_new$Symbol == "nom", 3] <- "11.246"
+DF_new[DF_new$Low == "0" & DF_new$Symbol == "nom", 5] <- "11.246"
+DF_new[DF_new$Volume == "0" & DF_new$Symbol == "nom", 7] <- "100"
+
+#smb
+DF_new %>% filter(Symbol == "smb") %>% filter(Date >= as.Date("2009-04-15") &
+Date <= as.Date("2009-04-25"))
+#open, low missing, impute with prior days close price
+DF_new[DF_new$Open == "0" & DF_new$Symbol == "smb", 3] <- "15.489"
+DF_new[DF_new$Low == "0" & DF_new$Symbol == "smb", 5] <- "15.489"
+
+#spab
+DF_new %>% filter(Symbol == "spab") %>% filter(Date >= as.Date("2007-05-20") &
+Date <= as.Date("2007-05-30"))
+#remove rows 2007-05-23 to 2007-05-29
+DF_new = DF_new[!(
+DF_new$Date >= as.Date("2007-05-23") &
+DF_new$Date <= as.Date("2007-05-29") & DF_new$Symbol == "spab"
+), ]
+
+#sptl
+DF_new %>% filter(Symbol == "sptl") %>% filter(Date >= as.Date("2007-05-20") &
+Date <= as.Date("2007-05-30"))
+#remove rows 2007-05-23 to 2007-05-29
+DF_new = DF_new[!(
+DF_new$Date >= as.Date("2007-05-23") &
+DF_new$Date <= as.Date("2007-05-29") & DF_new$Symbol == "sptl"
+), ]
+
+#uci
+DF_new %>% filter(Symbol == "uci") %>% filter(Date >= as.Date("2008-03-25") &
+Date <= as.Date("2008-04-05"))
+#didn't start trading until 2008-04-02
+#https://finance.yahoo.com/quote/UCI/history?period1=1205553600&period2=1207195200&interval=1d&filter=history&frequency=1d
+#remove row 2008-04-01
+DF_new = DF_new[!(DF_new$Date == as.Date("2008-04-01") &
+DF_new$Symbol == "uci"), ]
+
+#usv
+DF_new %>% filter(Symbol == "usv") %>% filter(Date >= as.Date("2008-03-25") &
+Date <= as.Date("2008-04-05"))
+#remove row 2008-04-01
+DF_new = DF_new[!(DF_new$Date == as.Date("2008-04-01") &
+DF_new$Symbol == "usv"), ]
+
+#vxz
+DF_new %>% filter(Symbol == "vxz") %>% filter(Date >= as.Date("2009-01-28") &
+Date <= as.Date("2009-02-05"))
+#remove row 2009-01-29
+DF_new = DF_new[!(DF_new$Date == as.Date("2009-01-29") &
+DF_new$Symbol == "vxz"), ]
+
+#rwx
+#didn't start trading until 12/19/2006
+#source: http://www.kibot.com/Historical_Data/All_Stocks_And_ETFs_Historical_Intraday_Data.aspx
+#remove rows 2006-12-15 to 2006-12-18
+DF_new = DF_new[!(
+DF_new$Date >= as.Date("2006-12-15") &
+DF_new$Date <= as.Date("2006-12-18") & DF_new$Symbol == "rwx"
+), ]
+
+#summary
+summary(DF_new)
+
+#Check very large returns to make sure they are correct
+#filter for log price changes greater than or less than 4%
+DF_change <- DF_new %>% filter(!between(Log_Daily_Return, -4, 4))
+View(DF_change)
+
+#ako-a
+#View days around that date
+DF_new %>% filter(Symbol == "ako-a") %>% filter(Date >= as.Date("2010-08-25") &
+Date <= as.Date("2010-09-04")) #incorrect open and low prices
+#open, low wrong, impute with prior days close price
+DF_new[DF_new$Open == "0.00924" &
+DF_new$Symbol == "ako-a", 3] <- "21.622"
+DF_new[DF_new$Low == "0.00924" &
+DF_new$Symbol == "ako-a", 5] <- "21.622"
+
+#avb
+DF_new %>% filter(Symbol == "avb") %>% filter(Date >= as.Date("2010-09-12") &
+Date <= as.Date("2010-09-19"))
+#closing price wrong, change to 87 (source: yahoo finance)
+DF_new[DF_new$Close == "0.8997" & DF_new$Symbol == "avb", 6] <- "87"
+
+#bofil
+DF_new %>% filter(Symbol == "bofil") %>% filter(Date >= as.Date("2016-03-07") &
+Date <= as.Date("2016-03-12"))
+#open, high wrong, impute with prior days close price
+DF_new[DF_new$Open == "182681.41" &
+DF_new$Symbol == "bofil", 3] <- "22.516"
+DF_new[DF_new$High == "182681.41" &
+DF_new$Symbol == "bofil", 4] <- "22.516"
+
+#bxp
+DF_new %>% filter(Symbol == "bxp") %>% filter(Date >= as.Date("2007-04-30") &
+Date <= as.Date("2007-05-10"))
+#close wrong, should be 87.88 (source: yahoo finance)
+DF_new[DF_new$Close == "0.8874" &
+DF_new$Symbol == "bxp", 6] <- "87.88"
+#open wrong, should be 87.35 (source: yahoo finance)
+DF_new[DF_new$Open == "0.8874" &
+DF_new$Symbol == "bxp", 3] <- "87.35"
+
+#cbmxw
+DF_new %>% filter(Symbol == "cbmxw") %>% filter(Date >= as.Date("2016-05-28") &
+Date <= as.Date("2016-06-3")) #correct
+
+#fud
+DF_new %>% filter(Symbol == "fud") %>% filter(Date >= as.Date("2008-10-06") &
+Date <= as.Date("2008-10-11"))
+#open, low wrong, fix source: yahoo finance
+DF_new[DF_new$Open == "0.3" & DF_new$Symbol == "fud", 3] <- "17.65"
+DF_new[DF_new$Low == "0.3" & DF_new$Symbol == "fud", 5] <- "17.39"
+
+#gcbc
+DF_new %>% filter(Symbol == "gcbc") %>% filter(Date >= as.Date("2016-04-25") &
+Date <= as.Date("2016-04-30"))
+#open, high wrong source:yahoo finance
+DF_new[DF_new$Open == "77739.67" &
+DF_new$Symbol == "gcbc", 3] <- "17.81"
+DF_new[DF_new$High == "77739.67" &
+DF_new$Symbol == "gcbc", 4] <- "19"
+
+#phii
+DF_new %>% filter(Symbol == "phii") %>% filter(Date >= as.Date("2016-04-12") &
+Date <= as.Date("2016-04-22"))
+
+#open, high wrong source:yahoo finance
+DF_new[DF_new$Open == "76800.02" &
+DF_new$Symbol == "phii", 3] <- "18.90"
+DF_new[DF_new$High == "76800.02" &
+DF_new$Symbol == "phii", 4] <- "20.95"
+
+#slg
+DF_new %>% filter(Symbol == "slg") %>% filter(Date >= as.Date("2014-03-01") &
+Date <= as.Date("2014-03-07"))
+#closing price wrong  (source: yahoo finance)
+DF_new[DF_new$Close == "0.9161" &
+DF_new$Symbol == "slg", 6] <- "90.11"
+
+#smbk
+DF_new %>% filter(Symbol == "smbk") %>% filter(Date >= as.Date("2016-01-10") &
+Date <= as.Date("2016-01-20"))
+#open, high wrong source:yahoo finance
+DF_new[DF_new$Open == "199999.99" &
+DF_new$Symbol == "smbk", 3] <- "16.90"
+DF_new[DF_new$High == "199999.99" &
+DF_new$Symbol == "smbk", 4] <- "16.90"
+
+#smed
+DF_new %>% filter(Symbol == "smed") %>% filter(Date >= as.Date("2016-07-20") &
+Date <= as.Date("2016-07-25"))
+#open, low wrong, fix source: yahoo finance
+DF_new[DF_new$Open == "0.0096" &
+DF_new$Symbol == "smed", 3] <- "5.38"
+DF_new[DF_new$Low == "0.0093" & DF_new$Symbol == "smed", 5] <- "5"
+
+#tgen
+DF_new %>% filter(Symbol == "tgen") %>% filter(Date >= as.Date("2016-03-15") &
+Date <= as.Date("2016-03-25"))
+#open, high wrong source:yahoo finance
+DF_new[DF_new$Open == "80000.99" &
+DF_new$Symbol == "tgen", 3] <- "3.85"
+DF_new[DF_new$High == "80000.99" &
+DF_new$Symbol == "tgen", 4] <- "3.86"
+
+#wsr
+DF_new %>% filter(Symbol == "wsr") %>% filter(Date >= as.Date("2010-09-28") &
+Date <= as.Date("2010-10-15"))
+#open, high wrong source:yahoo finance
+DF_new[DF_new$Open == "1133.16" &
+DF_new$Symbol == "wsr", 3] <- "6.25"
+DF_new[DF_new$High == "1133.16" &
+DF_new$Symbol == "wsr", 4] <- "6.25"
+DF_new[DF_new$Open == "570.08" &
+DF_new$Symbol == "wsr", 3] <- "6.70"
+DF_new[DF_new$High == "570.08" &
+DF_new$Symbol == "wsr", 4] <- "6.70"
+
+
+#Change columns back to numeric
+DF_new$Low <- as.numeric(DF_new$Low)
+DF_new$Open <- as.numeric(DF_new$Open)
+DF_new$High <- as.numeric(DF_new$High)
+DF_new$Close <- as.numeric(DF_new$Close)
+DF_new$Volume <- as.numeric(DF_new$Volume)
+
+#check class
+sapply(DF_new, class)
+
+#rerun daily log return
+DF_new$Log_Daily_Return <- log(DF_new$Close / DF_new$Open)
+
+#summary, check to see if INF and large daily changes are gone
+summary(DF_new)
+
+#filter for log price changes greater than or less than 3%
+DF_change2 <- DF_new %>% filter(!between(Log_Daily_Return, -3, 3))
+#cbmxw only stock with log daily return/loss of greater than 4%
+#due to time constraints I did not validate all of the stock and ETF prices, though I expect some of the stocks/ETFs showing prices changes of greater than log 3% are likely incorrect.
+
+#graph
+DF_change2$Symbol <- as.factor(DF_change2$Symbol)
+ggplot(DF_change2,
+aes(
+x = Date,
+y = Log_Daily_Return,
+position = "stack",
+fill = Symbol
+)) +
+geom_bar(stat = "identity", width = 5) + geom_text(data = subset(DF_change2, Symbol == 'cbmxw' |
+Symbol == 'syn'),
+aes(label = Symbol))
+
+#Daily return Arithmetic
+#Calculate daily return arithmetic
+DF_new$Daily_Return <- ((DF_new$Close / DF_new$Open) - 1)
+#graph daily return
+ggplot(data = DF_new, aes(DF_new$Daily_Return)) + geom_histogram() + xlab("Daily Return")
+
+#graph Daily return log
+ggplot(data = DF_new, aes(DF_new$Log_Daily_Return)) + geom_histogram() + xlab("Log Daily Return")
+
+```
+  
+Analysis: Log return equaled infinite when opening price was $0.  This occurred due to errors in the data, either the data was incorrect (i.e. wrong price) or the stock/ETF had not started trading as of that date (i.e. prior to IPO). When the data was incorrect, I fixed the data.  When the stock had not started trading as of that date, I removed the row from the data frame. Additionally, the log return variable revealed incorrect data.  I saw large changes in price.  Upon further inspection, many of the data inputs were incorrect.  I corrected the prices.  This resulted in one stock showing a significant daily change, CBMXW. It had a log daily return of 4.335507% on 2016-05-31. As you can see in the above graph, SYN had the greatest frequency of large stock moves (7 days) and CBMXW had the greatest daily change in price.  
+
+Conclusion: By calculating this variable, I was able to discover errors in the data that required fixing. I was also able to see which stocks/ETF's had the greatest daily price change, and which stocks/ETF's had the largest volatility.  
+Additionally, the benefit of using log returns instead of absolute prices is normalization, "measuring all variables in a comparable metric, thus enabling evaluation of analytic relationships among two or more variables despite originating from price series of unequal values." (source: https://quantivity.wordpress.com/2011/02/21/why-log-returns/). Another benefit of log returns is, assuming normal distribution, adding period returns produces an end period return that is also normally distributed (source: https://www.youtube.com/watch?v=PtoUlt3V0CI). Additionally,graphing log returns enables a person to see big moves on a percentage basis not on an absolute dollar basis (source: https://www.usatoday.com/story/money/columnist/krantz/2013/08/25/linear-logarithmic-stock-charts/2657493/). Also, converting prices to a log scale is highly useful when charting stock prices, as a significant percentage move will always correspond to a significant visual change (source :https://finance.zacks.com/use-logarithmic-scale-stocks-8760.html)   
+
+##Rolling moving average   
+
+Lead: I'm going to calculate the 5 day moving average on the closing price of each stock and ETF.   
+
+```{r}
+#load library
+library(RcppRoll)
+#caclulate 200 day moving average on closing price, create new column
+DF_new <- DF_new %>%
+group_by(Symbol) %>%
+mutate(Roll_Avg_Price = roll_mean(
+Close,
+200,
+na.rm = TRUE,
+align = "right",
+fill = 0
+)) %>%
+ungroup()
+
+#summary
+summary(DF_new)
+
+#graph rolling average vs. closing price for a select stock, GS
+ggplot() +
+geom_line(data = subset(DF_new, Symbol == 'gs'),
+aes(x = Date, y = Close, colour = "blue")) +
+geom_line(data = subset(DF_new, Symbol == 'gs'),
+aes(x = Date, y = Roll_Avg_Price, colour = "red")) +
+labs(
+title = "Price vs. Moving Avg",
+x = "Date",
+y = "Price",
+color = "Legend"
+) +
+scale_color_manual(
+labels = c("Closing Price", "200 Day Moving Avg"),
+values = c("blue", "red")
+)
+
+```
+Analysis: As you can see in the above graph, the 200 day moving average smooths out the data.  
+A moving average can also act as support or resistance. In a downtrend, a moving average may act as resistance; like a ceiling, the price hits the level and then starts to drop again.  This can be seen in the GS graph during 2008.  
+
+Conclusion: The moving average is a common technical analysis tool used by traders.  It is often used to identify trend direction and can also be used to generate potential buy and sell signals (source: http://www.onlinetradingconcepts.com/TechnicalAnalysis/MASimple.html).  
+
+##Feature Creation: Day of Week  
+
+Lead: Add day of week to the data frame.   
+
+```{r}
+#add day of week to data frame
+DF_new$Day <- weekdays(DF_new$Date)
+
+#calculate return by day of week for each ETF and stocks
+DF_new <- DF_new %>%
+  group_by(Symbol, Day) %>%
+  mutate(Weekday_Return = mean(Log_Daily_Return)) %>%
+  ungroup()
+
+#summary
+summary(DF_new)
+
+#filter
+DF_new %>% filter(Symbol == "gs") %>% filter(Date >= as.Date("1999-05-10") &
+                                               Date <= as.Date("1999-05-14")) # Wednesday's achieved the highest returns
+
+#calculate return by day of week for all ETF and stocks
+DF_new <- DF_new %>%
+  group_by(Day) %>%
+  mutate(Weekday_Return_All = mean(Log_Daily_Return)) %>%
+  ungroup()
+
+#summary
+summary(DF_new)
+
+#filter
+DF_new %>% filter(Symbol == "gs") %>% filter(Date >= as.Date("1999-05-10") &
+                                               Date <= as.Date("1999-05-14")) # Friday's achieved the highest returns
+
+#graph
+#filter
+DF_days = DF_new %>% filter(Symbol == "gs") %>% filter(Date >= as.Date("1999-05-10") &
+                                                         Date <= as.Date("1999-05-14"))
+#set factor levels
+DF_days$Day <- as.factor(DF_days$Day)
+DF_days$Day <-
+  factor(DF_days$Day,
+         levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday"))
+
+#graph for all stocks and etfs combined
+ggplot(DF_days, aes(Day, Weekday_Return_All)) +
+  geom_col() + ylab("Daily Log Return") + ggtitle("All Stocks and ETFs")
+
+#graph for GS
+ggplot(DF_days, aes(Day, Weekday_Return)) +
+  geom_col() + ylab("Daily Log Return") + ggtitle("GS")
+```
+Analysis: When looking at all stocks and ETF's combined, Friday's achieved the highest daily log return, Monday's performed worst.  Looking at a specific stock, GS, Wednesday's performed best while Monday's again performed worst.
+
+Conclusion: There seems to be a bias towards positive market performance on Friday's and a bias towards under performance on Monday's.  The business insight for this is investors are better off buying on Monday's selling on Friday's. Additionally, this analysis can be done on specific stocks. For example, over GS's trading history, Wednesday's outperformed and Monday's performed worst.  
