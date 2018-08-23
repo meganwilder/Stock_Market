@@ -97,3 +97,36 @@ Volume % Change: Modeling for Volume % Change resulted in 203 possible outliers 
 After, viewing the original data, I found it difficult to determine that these data points were true outliers. For example, on 5/21/12 ISRG’s volume was basically flat versus the prior day. However, my model predicted a 67% change. In the week prior to and after 5/21/12 ISRG’s volume percent change ranged from -26% to +49%. 
 
 Interestingly, while modeling for normal there was no possible outlier data points in common between modeling for Open Close % Change and Volume % Change.
+
+## RF
+In order to detect possible outliers, I trained several RF models for normal using Open Close % Change and Volume % Change as my response variables. 
+
+Response = Open Close % Change
+- Predictors = Most Variables
+- Predictors = 16 Most Important Variables
+- Predictors = 4 Most Important Variables
+
+Response = Volume % Change
+- Predictors = Most Variables
+- Predictors = 16 Most Important Variables
+- Predictors = 4 Most Important Variables
+
+Open Close % Change: Modeling for Open Close % Change resulted in 13 possible outliers as the actual Open Close % Change differed significantly from the value predicted by the RF model. These data points required additional analysis to determine if the anomaly detection was correct.
+
+![](figs/Picture4.png)
+
+Volume % Change: Modeling for Volume % Change resulted in 16 possible outliers as the actual Volume % Change differed significantly from the value predicted by the RF model. These data points required additional analysis to determine if the anomaly detection was correct.
+
+![](figs/Picture5.png)
+
+Overall, my RF models predicted greater change in Open Close % Change and Volume % Change than actually occurred. However, upon further inspection I was unable to definitively say that my model was more correct than the actual results.
+
+## Both RF and GLM models
+I then looked to see if my RF and GLM models came up with the same possible outliers. Both RF and GLM models when modeling for Open Close % Change found 4 overlapping data points:
+BLK: 5/19/11 BLK’s closing price was flat versus its opening price. However, my model predicted a 5% decline. It’s difficult to say that my model is correct and that the stock should have traded down significantly instead of flat. Particularly given that the stock traded in a narrow band the week prior to 5/19/11 and the week after (-1% - +1%).
+
+CMG: 1/12/12 CMG’s closing price was flat versus its opening price. However, my model predicted a 12% decline. Again, it’s difficult to say that my model is correct and that the stock should have traded down significantly instead of flat. Particularly given that the stock traded in a narrow band the week prior to 1/12/12 and the week after (-2% - +3%).
+
+GOOGL: 3/27/12 GOOGL’s closing price was flat versus its opening price. However, my model predicted a 3.4% increase. It’s difficult to say that my model is correct and that the stock should have traded up. Particularly given that the stock traded in a narrow band the week prior to 3/27/12 and the week after (-2% - +1%). 12/10/12 GOOGL’s closing price was flat versus its opening price. However, my model predicted a 2% increase. It’s difficult to say that my model is correct and that the stock should have traded up instead of
+flat. Particularly given that the stock traded in a narrow band the week prior to 12/10/12 and the week after
+(-2% - +2%).
