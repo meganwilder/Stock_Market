@@ -158,13 +158,18 @@ Used Caret Package to Train 5 Models
 - GLMNET
 - SVM Radial
 
+You can see the performance metrics of each of these models below. 
 ### Box Plots of Metrics
 ![](figs/Picture9.png)
 
 ### RMSE Metrics
 ![](figs/Picture10.png)
 
+RF resulted in the lowest RMSE, I therefore used RF as my best model and trained it on the entire training set.  I then predicted open close percentage change on my test set.  
+
 ### Outliers
+My model determined 3 possible outliers.  Upon further inspection it's difficult to say that my model is correct and that the stock should have traded differently as it actually did. 
+
 CMI: On 2016-11-11 CMI’s closing price was flat versus its opening price. My model predicted a 2% decline.
 
 ISRG: On 2016-12-13 ISRG’s closing price was flat versus its opening price. My model predicted a 2% increase.
