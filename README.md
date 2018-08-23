@@ -56,6 +56,24 @@ This dataset is comprised of over 14 million observations and 7 columns. The var
 In order to detect possible outliers, I trained several GLM models for normal using Open Close % Change
 and Volume % Change as my response variables. 
 
+Response = Open Close % Change
+- Predictors = Most Variables
+- Predictors = 16 Most Important Variables
+- Predictors = 4 Most Important Variables
+
+Response = Volume % Change
+- Predictors = Most Variables
+- Predictors = 9 Most Important Variables
+- Predictors = 4 Most Important Variables
+
+When modeling for Open Close % Change my best model used the top 4 most important variables shown here. 
+
+4 Most Important Variables
+- Low Change
+- Volume Change
+- Volume EMA10
+- High Change
+
 Open Close % Change: Modeling for Open Close % Change resulted in 49 possible outliers as the actual Open Close % Change differed significantly from the value predicted by the GLM model. These data points required additional analysis to determine if the anomaly
 detection was correct. 
 
@@ -63,6 +81,14 @@ detection was correct.
 
 After, viewing the data points it is difficult to determine that any of the data points are true anomalies. For example, on 1/12/12 CMG’s closing price was flat versus its opening price. However, my model predicted a 12% decline. It’s difficult to say that my model is correct and that the stock should have traded down significantly instead of flat. Particularly given that the stock traded in a narrow band the
 week prior to 1/12/12 and the week after (-2% - +3%).
+
+When modeling for Volume % Change my best model used the top 4 most important variables shown here. 
+
+4 Most Important Variables
+- Low Change
+- Volume Change
+- Volume EMA10
+- High Change
 
 Volume % Change: Modeling for Volume % Change resulted in 203 possible outliers as the actual Volume % Change differed significantly from the value predicted by the GLM model. These data points required additional analysis to determine if the anomaly detection was correct.
 
