@@ -149,3 +149,24 @@ CMG: 1/12/12 CMG’s closing price was flat versus its opening price. However, m
 GOOGL: 3/27/12 GOOGL’s closing price was flat versus its opening price. However, my model predicted a 3.4% increase. It’s difficult to say that my model is correct and that the stock should have traded up. Particularly given that the stock traded in a narrow band the week prior to 3/27/12 and the week after (-2% - +1%). 12/10/12 GOOGL’s closing price was flat versus its opening price. However, my model predicted a 2% increase. It’s difficult to say that my model is correct and that the stock should have traded up instead of
 flat. Particularly given that the stock traded in a narrow band the week prior to 12/10/12 and the week after
 (-2% - +2%).
+
+## Automated Machine Learning
+Used Caret Package to Train 5 Models 
+- Generalized Linear Model
+- Random Forest
+- Partial Least Squares
+- GLMNET
+- SVM Radial
+
+### Box Plots of Metrics
+![](figs/Picture9.png)
+
+### RMSE Metrics
+![](figs/Picture10.png)
+
+### Outliers
+CMI: On 2016-11-11 CMI’s closing price was flat versus its opening price. My model predicted a 2% decline.
+
+ISRG: On 2016-12-13 ISRG’s closing price was flat versus its opening price. My model predicted a 2% increase.
+
+REGN: On 2016-10-27 REGN’s closing price was flat versus its opening price. My model predicted a 1% increase.
