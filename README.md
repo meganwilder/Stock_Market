@@ -8,6 +8,7 @@ This dataset is comprised of over 14 million observations and 7 columns. The var
 - High
 - Low
 - Close
-- Volume
+- Volume  
 
+![](figs/Picture1.png)
 # Feature Creation
