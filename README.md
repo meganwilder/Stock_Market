@@ -121,7 +121,7 @@ When modeling for Open Close % Change my best model used the top 4 most importan
 
 Open Close % Change: Modeling for Open Close % Change resulted in 13 possible outliers as the actual Open Close % Change differed significantly from the value predicted by the RF model. These data points required additional analysis to determine if the anomaly detection was correct.
 
-![](figs/Picture4.png)
+![](figs/Picture7.png)
 
 When modeling for Volume % Change my best model used the top 4 most important variables shown here. 
 
@@ -133,7 +133,7 @@ When modeling for Volume % Change my best model used the top 4 most important va
 
 Volume % Change: Modeling for Volume % Change resulted in 16 possible outliers as the actual Volume % Change differed significantly from the value predicted by the RF model. These data points required additional analysis to determine if the anomaly detection was correct.
 
-![](figs/Picture5.png)
+![](figs/Picture8.png)
 
 Overall, my RF models predicted greater change in Open Close % Change and Volume % Change than actually occurred. However, upon further inspection I was unable to definitively say that my model was more correct than the actual results.
 
